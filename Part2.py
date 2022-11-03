@@ -1,12 +1,10 @@
 import math
 import matplotlib.pyplot as mplib
 import numpy as np
-import random
 import scipy
 
-#Will be usign this time with fixed value of n (39 as stated fo reasons below but this may change)
+#Will be using this time with fixed value of n (39 as stated fo reasons below but this may change)
 def erlangForm(n, aZero):
-
     numerator = (aZero ** n) / (math.factorial(n))
     denominator = 0
     for b in range(n + 1):
@@ -14,56 +12,63 @@ def erlangForm(n, aZero):
     er = numerator/denominator
     return er
 
-#Seems to be working as intended
-def callStartTime():
-    print('nada')
-    np.random.uniform(0, 60, 1)  # randomly generating call start times in 60 minute window, with 0.01 hour resolution (6 secs)
-    print('call start time')
-    print(np.random.uniform(0, 60, 10)) #changing final param effects number of call start times generated - would want it to be 600 if doing all at once
+def generateCalls(numberToGenerate):
+    startTime = np.random.uniform(0, 3600, numberToGenerate)  # generating desired number of values for start times
+    startTime.sort()                                          # ordering start times sequentially
+
+    duration = scipy.stats.lognorm.rvs(scale=180, s=1.1, size=numberToGenerate)  # scale should be 3mins or 180 secs (this is the mean)
+                                                                                 # may need to fiddle scale, this is std. dev value and may need to be altered somewhat to be more reflective of reality
+
+    allCallInfo = []
+    for x in range(numberToGenerate):
+        templist = []
+        templist.append(startTime[x])
+        templist.append(duration[x])
+        allCallInfo.append(templist)  # create list of 2 element lists that contains the start times and durations of each call
+
+    return allCallInfo
+
+def runSimulation(runTime, numberCalls, numberChannels, callInfo):
+    allCallInfo = callInfo
+    currentAvailChannels = numberChannels
+    droppedCalls = 0
+
+    for callAttemptNo in numberCalls:  # all calls to be attempted
+        for time in runTime:  # int representation of time in seconds
+
+            if allCallInfo[callAttemptNo] == None:
+                break  # do nothing, we don't need to worry about it anymore, call either handled properly or dropped
 
 
-#Working as needed now, can just fiddle std. dev as needed later on
-def callDuration():
-    print('call durations')
-    print( scipy.stats.lognorm.rvs(scale=3, s=1/120, size=600) )        #3 min mean, 1/120 st dev., 600 samples
-    #return this value in future
+            # call has finished, can move on
+            elif time > (round(allCallInfo[callAttemptNo][0]) + allCallInfo[callAttemptNo][1]):
+                currentAvailChannels += 1
+                allCallInfo[callAttemptNo] = None  # remove info about call, no longer care about it
 
 
-def monteCarlo(channelsAvailMax, trafficOff):
-    print('monte carlo randomisation')
-    callsDropped = 0  # number of calls dropped to be decided
-    currentChannelsAvail = channelsAvailMax     #start with all channels available for use
-    allChannelsUsed = False
+            # call is ready to begin, can it be handled?
+            elif time == round(allCallInfo[callAttemptNo][0]):  # start time, need to round to nearest second
+                if currentAvailChannels != 0:
+                    currentAvailChannels -= 1  # taking control of a channel, remove it from those available
+                    # dont remove from list
 
 
+                elif currentAvailChannels == 0:  # no channels free
+                    allCallInfo[callAttemptNo] = None  # drop call from list of all calls, it is no longer needed
+                    droppedCalls += 1
 
-    if(allChannelsUsed == True):
-        callsDropped +=1        #update calls dropped total
+    return droppedCalls
+
+def monteCarlo(numberSimulations):
 
 
-    #how to calculate actual GoS provided?
+    calls = generateCalls(600)
 
-    totalCallsAttempted = 600                #should be this value no?
-    actualGradeOfService = callsDropped / totalCallsAttempted
-
-    resultForThisRun = 0  # obvious change needed here
-
-    actualGoS.append(resultForThisRun)  # recording the actual GoS observed in a given run of the simulation
-
-#Minimum number of channels deemed to be appropriate = 39 (if using GoS of 0.025) -> this may change so watch out
-#Have to create Monte Carlo simulation for calls and work on Part 1 stuff w/ graphing also
-#Know our number of channels is 39 from part 1 and aZero is 30 Erlangs
-
-callAttempts = 600
-avgDuration = 0.05      #3 minutes expressed as fraction of an hour
-
-#log normal dist for call durations - will need to site source for this but shouldn't be too hard found all going well
-#or maybe gamma if I feel like it? - largely similar
+    result = runSimulation(3600, 600, 39, calls)
 
 
 
 
-#Duration of each call is randomly generated using appropriate call holding / time duration distribution -> find this online and work from it
 
 __main__ = True
 actualGoS = []  #save results of each of multiple runs here to find true mean, etc
@@ -71,14 +76,8 @@ actualGoS = []  #save results of each of multiple runs here to find true mean, e
 while(__main__):
     print('main loop')
 
-    channelsAvailable = 39  #can change this var as needed - depends on GoS used in part 1 so variable just handier to use - prob should be 42 for 1% GoS
-    trafficOffered = 30     #Erlangs
 
-    traffic = np.linspace(0, 601, 20)   #alter step size as needed
 
-    monteCarlo(channelsAvailable, trafficOffered)   #feed in n value
-    callStartTime()
-    callDuration()
 
     #mplib.plot() plot erlangForm function result (y-axis value) for given traffic offered (x-axis value)
     #mplib.plot() plot actual observed GoS values from monte carlo function (these saved to list/array)
