@@ -33,8 +33,8 @@ def runSimulation(runTime, numberCalls, numberChannels, callInfo):
     currentAvailChannels = numberChannels
     droppedCalls = 0
 
-    for callAttemptNo in numberCalls:  # all calls to be attempted
-        for time in runTime:  # int representation of time in seconds
+    for callAttemptNo in range(numberCalls):  # all calls to be attempted
+        for time in range(runTime):  # int representation of time in seconds
 
             if allCallInfo[callAttemptNo] == None:
                 break  # do nothing, we don't need to worry about it anymore, call either handled properly or dropped
@@ -57,14 +57,40 @@ def runSimulation(runTime, numberCalls, numberChannels, callInfo):
                     allCallInfo[callAttemptNo] = None  # drop call from list of all calls, it is no longer needed
                     droppedCalls += 1
 
-    return droppedCalls
+    return droppedCalls #returns the total number of calls that were dropped for a given simulation run
 
 def monteCarlo(numberSimulations):
 
+    gosValuesActuallyObservedBySimulation = []
 
-    calls = generateCalls(600)
 
-    result = runSimulation(3600, 600, 39, calls)
+    #Each simulation run randomly generates a slightly different set of call data, i.e. start times and durations, for the known number of
+    #channels needed to meet the demand.
+    #These differences result in different real world values for the GoS offered by the system based on these differing inputs
+    for i in range(numberSimulations):
+        calls = generateCalls(600)
+        droppedCalls = runSimulation(3600, 600, 42, calls)  #returns an actual integer value for the number of calls dropped in a given simulation run
+
+        gosValuesActuallyObservedBySimulation.append(droppedCalls/600) #calculation of 'real-world' gos value and recording this
+
+        print("Sim run no.: ", i)
+
+    averageGoSFromSimualtionRuns = sum(gosValuesActuallyObservedBySimulation)/len(gosValuesActuallyObservedBySimulation)    #Mean of simulation GoS
+    print(averageGoSFromSimualtionRuns)
+
+    fig, ax = mplib.subplots()
+    ax.scatter([1], [0.007397146595099745], marker='o', color='blue', label="Expected GoS Value ")
+
+    mplib.boxplot(gosValuesActuallyObservedBySimulation)    #Making plot of actual GoS values observed during all simulations, using boxplot as is most useful for showing the relevant data here
+
+    mplib.ylabel('Grade of Service Observed in Monte Carlo Sim Runs')
+
+    mplib.title("Boxplot Showing Range Of GoS Values Observed")
+    mplib.legend(bbox_to_anchor=(1, 0), bbox_transform=ax.transAxes, loc="lower right", ncol=1)
+
+    mplib.show()
+
+
 
 
 
@@ -76,11 +102,11 @@ actualGoS = []  #save results of each of multiple runs here to find true mean, e
 while(__main__):
     print('main loop')
 
-
+    monteCarlo(50) #runs 100 simulations
 
 
     #mplib.plot() plot erlangForm function result (y-axis value) for given traffic offered (x-axis value)
     #mplib.plot() plot actual observed GoS values from monte carlo function (these saved to list/array)
     #can then compare predicted results of Erlang-B formula against what we actually saw for the traffic offered
 
-    __main__ = False
+    __main__ = False    #end of program

@@ -25,7 +25,7 @@ def erlangForm(n, aZero):
 #                                    j!
 
 
-desiredGoS = 0.025
+desiredGoS = 0.01
 results = []
 
 
