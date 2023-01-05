@@ -61,29 +61,58 @@ def runSimulation(runTime, numberCalls, numberChannels, callInfo):
 
 def monteCarlo(numberSimulations):
 
-    gosValuesActuallyObservedBySimulation = []
+    gosValuesActuallyObservedBySimulationForDay = []
+    totalCallAttemptsForDay = 600 / 0.089  # Calculates total call attempts for the 24hr period based on given information
+    totalCallAttemptsForDay = round(totalCallAttemptsForDay)
+    print(totalCallAttemptsForDay)
+    proportionOfDailyCallAttemptsByHour = [0.0009, 0.0005, 0.0004, 0.0004, 0.0008, 0.0044, 0.0168, 0.051, 0.0813,
+                                           0.0794, 0.0743, 0.0795, 0.0881, 0.089, 0.0866, 0.0848, 0.0821, 0.068, 0.047,
+                                           0.0306, 0.0183, 0.0095, 0.0043, 0.002]  # As described by variable name
 
+    minChannelsNeededByHour = []
+    # Calculating number of channels minimally necessary to achieve 1% GoS value for traffic in the given hour
+    for t in range(24):
+        channelsNeeded = 0
+        while erlangForm(channelsNeeded,((round(proportionOfDailyCallAttemptsByHour[t] * totalCallAttemptsForDay)) * 3) / 60) > 0.01:
+            channelsNeeded += 1
+
+        minChannelsNeededByHour.append(channelsNeeded)
 
     #Each simulation run randomly generates a slightly different set of call data, i.e. start times and durations, for the known number of
     #channels needed to meet the demand.
     #These differences result in different real world values for the GoS offered by the system based on these differing inputs
-    for i in range(numberSimulations):
-        calls = generateCalls(600)
-        droppedCalls = runSimulation(3600, 600, 42, calls)  #returns an actual integer value for the number of calls dropped in a given simulation run
 
-        gosValuesActuallyObservedBySimulation.append(droppedCalls/600) #calculation of 'real-world' gos value and recording this
+    for i in range(numberSimulations):
+        gosValuesActuallyObservedBySimulationForHour = []
+
+        #loop iterates through 24 hours of the day and corresponding (provided) proportion of call attempts, generating the 'real-world' GoS values seen by the system each hour
+        for j in range(24):
+            callsForThisHour = generateCalls(round(proportionOfDailyCallAttemptsByHour[j]*totalCallAttemptsForDay))
+
+            droppedCallsForThisHour = runSimulation(3600, len(callsForThisHour), minChannelsNeededByHour[j], callsForThisHour)  #returns an actual integer value for the number of calls dropped in a given simulation run
+
+            gosValuesActuallyObservedBySimulationForHour.append(droppedCallsForThisHour / len(callsForThisHour))
+
+
+        gosValuesActuallyObservedBySimulationForDay.append(sum(gosValuesActuallyObservedBySimulationForHour)/len(gosValuesActuallyObservedBySimulationForHour) )#calculation of 'real-world' gos value and recording this
+
+
 
         print("Sim run no.: ", i)
 
-    averageGoSFromSimualtionRuns = sum(gosValuesActuallyObservedBySimulation)/len(gosValuesActuallyObservedBySimulation)    #Mean of simulation GoS
+
+    averageGoSFromSimualtionRuns = sum(gosValuesActuallyObservedBySimulationForDay)/len(gosValuesActuallyObservedBySimulationForDay)    #Mean of simulation GoS
     print("Simulation mean:",averageGoSFromSimualtionRuns)
-    stdDevGoSFromSimulationRuns = np.std(gosValuesActuallyObservedBySimulation)
+    stdDevGoSFromSimulationRuns = np.std(gosValuesActuallyObservedBySimulationForDay)
     print("Simulation Std. Deviation:", stdDevGoSFromSimulationRuns)
 
+    print("Channels used in this day, with reduction of channels doable 1 at a time: ", sum(minChannelsNeededByHour))
+    print("Channels used if no optimisations carried out: ", 42 * 24)
+    print("Percentage Reduction in power use: ", (((42*24)-sum(minChannelsNeededByHour))/(42*24))*100)
 
     fig, ax = mplib.subplots()
     ax.scatter([1], [0.007397146595099745], marker='o', color='blue', label="Expected GoS Value ")
-    mplib.boxplot(gosValuesActuallyObservedBySimulation)    #Making plot of actual GoS values observed during all simulations, using boxplot as is most useful for showing the relevant data here
+    mplib.boxplot(gosValuesActuallyObservedBySimulationForDay)    #Making plot of actual GoS values observed during all simulations, using boxplot as is most useful for showing the relevant data here
     mplib.ylabel('Grade of Service Observed in Monte Carlo Sim Runs')
     mplib.title("Boxplot Showing Range Of GoS Values Observed")
     mplib.legend(bbox_to_anchor=(1, 0), bbox_transform=ax.transAxes, loc="lower right", ncol=1)
@@ -97,5 +126,5 @@ __main__ = True
 
 while(__main__):
     print('Begin Simulations:')
-    monteCarlo(1000)
+    monteCarlo(5)
     __main__ = False    #end of program
